@@ -14,9 +14,9 @@ import java.time.format.*;
  * </p>
  * 
  * 
- * @author Sutton Harr
- * @version 1.1
+ * @author Sutton Harr 
  * 
+ * @version 1.03 
  * 
  */
 

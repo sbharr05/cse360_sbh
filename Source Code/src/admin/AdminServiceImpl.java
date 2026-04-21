@@ -8,21 +8,91 @@ public class AdminServiceImpl implements AdminService {
     private final Database db;
     private final Map<String, UserSummary> users = new LinkedHashMap<>();
 
-    
+    /*hw3lines ...---------------------*/
+    public String resetPasswordAs(String actingUserId, boolean actingIsAdmin, String targetUserId) {
+        if (targetUserId == null || !users.containsKey(targetUserId)) return null;
+
+        boolean actingOwnAccount = actingUserId != null && actingUserId.equals(targetUserId);
+        if (!actingIsAdmin && !actingOwnAccount) return null;
+
+        if (actingUserId == null && actingIsAdmin) return null;
+
+        String actor = actingUserId != null ? actingUserId : targetUserId;
+
+        String newPass = PasswordUtil.generateStrongTemp(12);
+        if (!db.updatePasswordAuthorized(targetUserId, actor, newPass)) {
+            return null;
+        }
+        db.updateUserPasswordReset(targetUserId, true);
+        return newPass;
+    }
+
+    public boolean changeRoleAs(String actingUserId, boolean actingIsAdmin, String targetUserId, Role newRole) {
+        if (!actingIsAdmin || actingUserId == null || targetUserId == null || newRole == null) return false;
+
+        UserSummary u = users.get(targetUserId);
+        if (u == null) {
+            loadUsersFromDatabase();
+            u = users.get(targetUserId);
+            if (u == null) {
+                return false;
+            }
+        }
+
+        Role currRole = u.getRole();
+        if (currRole == newRole) return true;
+        if (currRole == Role.ADMIN && newRole != Role.ADMIN && countActiveAdmins() == 1) return false;
+
+        boolean removed = true;
+        if (currRole != Role.NONE) {
+            removed = db.updateUserRoleAuthorized(targetUserId, actingUserId, currRole, false);
+        }
+        if (!removed) {
+            return false;
+        }
+
+        boolean added = true;
+        if (newRole != Role.NONE) {
+            added = db.updateUserRoleAuthorized(targetUserId, actingUserId, newRole, true);
+        }
+
+        if (!added) {
+            if (currRole != Role.NONE) {
+                db.updateUserRoleAuthorized(targetUserId, actingUserId, currRole, true);
+            }
+            return false;
+        }
+
+        users.put(targetUserId, new UserSummary(u.getUserId(), u.getDisplayName(), newRole, u.isActive()));
+        return true;
+    }
+    /*hw3 lines*/
     //Sets up the admin service page
     public AdminServiceImpl() {
-        this.db = FoundationsMain.database;
-        List<String> userNames = db.getUserList(); //Get the list of all user names 
+    	this(FoundationsMain.database);
+    }
+
+    public AdminServiceImpl(Database database) {
+        this.db = database;
+        loadUsersFromDatabase();
+    }
+
+    private void loadUsersFromDatabase() {
+        users.clear();
+        List<String> userNames = db.getUserList(); //Get the list of all user names
         for (int i = 0; i < userNames.size(); i ++) 
         {
         	String username = userNames.get(i);
-        	String prefFirst = db.getPreferredFirstName(username); //Get Pref First Name
-        	UserSummary newSummary = new UserSummary(
-        			username, 
-        			(prefFirst == "") ? db.getFirstName(username) : prefFirst, //If the user hasn't set a pref. First name then attempt to use norm first name.
-        			db.getRoleByUser(username),
-        			db.getActiveStatus(username));
-        	users.put(username, newSummary);
+            String prefFirst = db.getPreferredFirstName(username); //Get Pref First Name
+            String displayName = (prefFirst == null || prefFirst.isEmpty())
+                    ? db.getFirstName(username)
+                    : prefFirst; //If the user hasn't set a pref. First name then attempt to use norm first name.
+            UserSummary newSummary = new UserSummary(
+                            username,
+                            displayName,
+                            db.getRoleByUser(username),
+                            db.getActiveStatus(username));
+            users.put(username, newSummary);
         }
     }
 
@@ -51,24 +121,14 @@ public class AdminServiceImpl implements AdminService {
     //Changes a current users role
     @Override
     public boolean changeRole(String userId, Role newRole) {
-        UserSummary u = users.get(userId);
-        Role currRole = u.getRole();
-        if (currRole == Role.ADMIN && newRole != Role.ADMIN && countActiveAdmins() == 1) return false;
-        db.updateUserRole(userId, currRole, "FALSE"); //Remove Current Role
-        db.updateUserRole(userId, newRole, "TRUE"); //Update Role to New One
-        users.put(userId, new UserSummary(u.getUserId(), u.getDisplayName(), newRole, u.isActive()));
-        return true;
+    	 return changeRoleAs(db.getCurrentUsername(), db.getCurrentAdminRole(), userId, newRole);
     }
 
     
     //Resets a password and generates a new one
     @Override
     public String resetPassword(String userId) {
-        if (!users.containsKey(userId)) return null;   //If the user does not exist return nothing
-        String newPass = PasswordUtil.generateStrongTemp(12); //Generate a random strong password
-        db.updatePassword(userId, newPass); //Update the users password
-        db.updateUserPasswordReset(userId, true);
-        return newPass;    //Return the new password 
+    	 return resetPasswordAs(db.getCurrentUsername(), db.getCurrentAdminRole(), userId);
     }
 
     /* Helpers */

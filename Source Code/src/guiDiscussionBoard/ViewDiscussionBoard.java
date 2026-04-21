@@ -1,7 +1,9 @@
 package guiDiscussionBoard;
 
+import entityClasses.DiscussionBoardContent;
 import entityClasses.Post;
 import entityClasses.Reply;
+import entityClasses.ReportInfo;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.collections.transformation.FilteredList;
@@ -28,8 +30,9 @@ import java.util.List;
  * </p>
  * 
  * 
- * @author Sutton Harr
- * @version 1.1
+ * @author Sutton Harr 
+ * 
+ * @version 1.03
  * @see ControllerDiscussionBoard
  * 
  * 
@@ -38,10 +41,12 @@ public class ViewDiscussionBoard {
 	
 	
     private final TableView<Post> postsTable = new TableView<>(); //The table of all the posts
+    private final TableView<ReportInfo> reportsTable = new TableView<>();
     private final TableView<Reply> repliesTable = new TableView<>(); //The table of all the replies
     private ControllerDiscussionBoard controller = new ControllerDiscussionBoard(); //Instance of the controller class
 
 	private Post activePost; //Currently Active Post
+	private ReportInfo activeReport;
 	private Label label_Header = new Label(); //Label for the post header when viewing
 	private TextArea post_Body = new TextArea(); //Label for the Text Area of the body content
 	private Stage parentStage; //The Stage of the post list
@@ -55,6 +60,79 @@ public class ViewDiscussionBoard {
      */
     public static void display(Stage owner) {
         new ViewDiscussionBoard().show(owner);
+    }
+    
+    public static void displayReports(Stage owner) 
+    {
+    	new ViewDiscussionBoard().showReports(owner);
+    }
+    
+    
+    /**
+     * Initializes the report viewer
+     * 
+     * @param owner the parent window of the discussion board
+     */
+    @SuppressWarnings("unchecked")
+	private void showReports(Stage owner) 
+    {
+    	 Stage dlg = new Stage(); //New Stage
+         parentStage = dlg;
+         
+         //Init the window things
+         dlg.initOwner(owner);
+         dlg.initModality(Modality.WINDOW_MODAL);
+         dlg.setTitle("Active Reports");
+         reportsTable.setPlaceholder(new Label("No Reports to Display"));
+         
+         
+         // Number of reports
+         TableColumn<ReportInfo, String> colNum = new TableColumn<>("Reports");
+         colNum.setCellValueFactory(c -> new ReadOnlyStringWrapper(c.getValue().getNumber() + ""));
+         colNum.setPrefWidth(150);
+
+         // Offender Name
+         TableColumn<ReportInfo, String> colName = new TableColumn<>("Posted By");
+         colName.setCellValueFactory(c -> new ReadOnlyStringWrapper(c.getValue().getObject().getUser()));
+         colName.setPrefWidth(70);
+
+
+         // Summary of content
+         TableColumn<ReportInfo, String> colSum = new TableColumn<>("Summary");
+         colSum.setCellValueFactory(c -> new ReadOnlyStringWrapper(c.getValue().getObject().getSummary()));
+         colSum.setPrefWidth(400);
+
+         reportsTable.getColumns().addAll(colNum , colName, colSum);
+         reportsTable.setPrefHeight(360);
+         reportsTable.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY_FLEX_LAST_COLUMN);
+         
+         
+         // Bottom: actions
+         Button btnView  = new Button("Inspect");
+         Button btnClose       = new Button("Close");
+
+         //Set all relevant button actions
+         btnView.setOnAction(e -> viewReport());
+         btnClose.setOnAction(e -> dlg.close());
+         
+         //Compile list of all buttons
+         HBox actions = new HBox(10, btnView, new Region(), btnClose);
+         HBox.setHgrow(actions.getChildren().get(actions.getChildren().size()-2), Priority.ALWAYS);
+         actions.setPadding(new Insets(10));
+
+         
+         BorderPane root = new BorderPane();
+         
+         root.setCenter(new VBox(5, reportsTable)); //Set table in the middle
+         root.setBottom(actions); //Set actions at the bottom
+         Scene scene = new Scene(root, 820, 520);
+         dlg.setScene(scene);
+         
+
+         // Initial load
+         refreshReports();
+
+         dlg.showAndWait();
     }
 
     /**
@@ -252,6 +330,7 @@ public class ViewDiscussionBoard {
         Button btnDelete  = new Button("Delete");
         Button btnClose       = new Button("Close");
         Button btnMarkResolved = (activePost.getSolved()) ? new Button("Re-Open Discussion") : new Button("Mark Resolved");
+        Button btnReportAbuse = new Button("Report Abuse");
         
         //Bind all relevant actions
         btnClose.setOnAction(e -> viewStage.close());
@@ -259,6 +338,7 @@ public class ViewDiscussionBoard {
         btnEdit.setOnAction(e -> onEdit2());
         btnDelete.setOnAction(e -> onDelete2());
         btnMarkResolved.setOnAction(e -> onSolve());
+        btnReportAbuse.setOnAction(e -> report());
 
         
         Region spacer = new Region(); //New Spacer
@@ -266,10 +346,10 @@ public class ViewDiscussionBoard {
         
         
         //This whole block basically determines what buttons are available based on the solved status, and the users permissions over the post
-        if (!controller.canEdit(activePost, false, true) && !activePost.getSolved()) actions = new HBox(10, btnReply, btnEdit ,btnDelete, spacer, btnClose);
-        else if (!controller.canEdit(activePost, false, true) && activePost.getSolved()) actions = new HBox(10, btnDelete, spacer, btnClose);
-        else if (controller.canEdit(activePost, false, true) && activePost.getSolved()) actions = new HBox(10, btnMarkResolved, btnDelete, spacer, btnClose);
-        else if (controller.canEdit(activePost, false, true) && !activePost.getSolved()) actions = new HBox(10, btnReply, btnMarkResolved, btnEdit ,btnDelete, spacer, btnClose);
+        if (!controller.canEdit(activePost, false, true) && !activePost.getSolved()) actions = new HBox(10, btnReply, btnEdit ,btnDelete, btnReportAbuse, spacer, btnClose);
+        else if (!controller.canEdit(activePost, false, true) && activePost.getSolved()) actions = new HBox(10, btnDelete, btnReportAbuse, spacer, btnClose);
+        else if (controller.canEdit(activePost, false, true) && activePost.getSolved()) actions = new HBox(10, btnMarkResolved, btnDelete, btnReportAbuse, spacer, btnClose);
+        else if (controller.canEdit(activePost, false, true) && !activePost.getSolved()) actions = new HBox(10, btnReply, btnMarkResolved, btnEdit ,btnDelete, btnReportAbuse, spacer, btnClose);
         
         //Set Padding things
         HBox.setHgrow(spacer, Priority.ALWAYS);
@@ -300,6 +380,73 @@ public class ViewDiscussionBoard {
         viewStage.showAndWait();
     }
     
+    private void showReport(ReportInfo report) 
+    {
+    	DiscussionBoardContent content = report.getObject();
+    	activeReport = report; //Set currently viewed post
+    	
+    	//Create new window stage
+        viewStage = new Stage();
+        viewStage.initOwner(parentStage);
+        viewStage.initModality(Modality.WINDOW_MODAL);
+        viewStage.setTitle(content.getSummary() + " - " + content.getCreateInfoFormatted());
+        
+        //Set up Header
+        label_Header.setText(controller.getReportHeader(report));
+        setupLabelUI(label_Header, "Arial", 28, 350, Pos.TOP_LEFT, 0, 5);
+        
+        
+        //Set up Body
+        post_Body.setText(content.getBody());
+        post_Body.setWrapText(true);
+        post_Body.setEditable(false);
+        
+        //Set the style of the body (It had this weird blue outline I needed to get rid of)
+        post_Body.setStyle(
+        	    "-fx-focus-color: transparent;" +
+        	    "-fx-faint-focus-color: transparent;" +
+        	    "-fx-background-color: transparent;" +
+        	    "-fx-background-insets: 0;" +
+        	    "-fx-background-radius: 0;" +
+        	    "-fx-border-color: transparent;"
+        	);
+        
+        Button btnEdit = new Button("Edit");
+        Button btnDelete  = new Button("Delete");
+        Button btnClose       = new Button("Close");
+        Button btnMarkResolved = new Button("Resolve Reports");
+        
+        //Bind all relevant actions
+        btnClose.setOnAction(e -> viewStage.close());
+        btnEdit.setOnAction(e -> onEdit3());
+        btnDelete.setOnAction(e -> onDelete3());
+        btnMarkResolved.setOnAction(e -> resolveReport());
+
+        
+        Region spacer = new Region(); //New Spacer
+        HBox actions = new HBox(); //New HBox
+        
+        
+        actions = new HBox(10, btnMarkResolved, btnDelete, btnEdit, spacer, btnClose);
+        
+        //Set Padding things
+        HBox.setHgrow(spacer, Priority.ALWAYS);
+        actions.setPadding(new Insets(10));
+        
+        //Set the window up
+        BorderPane root = new BorderPane();
+        root.setTop(label_Header);
+        BorderPane.setMargin(label_Header, new Insets(10, 10, 10, 10));
+        root.setCenter(post_Body);
+        root.setBottom(actions);
+
+        Scene scene = new Scene(root);
+        viewStage.setScene(scene);
+        
+
+        viewStage.showAndWait();
+    }
+    
     
     /**
      * Clears the replies table then checks the HashMap of replies to put whatever relevant replies belong to the post
@@ -323,6 +470,32 @@ public class ViewDiscussionBoard {
     	
     	if(postToView != null)
     		showPost(postToView);
+    }
+    
+    
+    /**
+     * Checks if a report is selected then opens up the post view window
+     */
+    private void viewReport() 
+    {
+    	ReportInfo reportToView = selectedOrWarnReport();
+    	
+    	if(reportToView != null)
+    		showReport(reportToView);
+    }
+    
+    /**
+     * Determines if there is a report selected or not
+     * shows a warning if now report is selected
+     * 
+     * @return the selected report
+     */
+    private ReportInfo selectedOrWarnReport() {
+        ReportInfo u = reportsTable.getSelectionModel().getSelectedItem();
+        if (u == null) {
+            new Alert(Alert.AlertType.WARNING, "Please select a Report").showAndWait(); //If no post selected show a warning
+        }
+        return u;
     }
     
     /**
@@ -416,6 +589,20 @@ public class ViewDiscussionBoard {
         }
     }
     
+    
+    /**
+     * Refreshes the content of the reports table
+     */
+    private void refreshReports() 
+    {
+    	reportsTable.getItems().clear();
+    	List<ReportInfo> reports = controller.getReports();
+    	if (reports == null) return;
+        ObservableList<ReportInfo> data = FXCollections.observableArrayList(reports);
+        reportsTable.setItems(data);
+        reportsTable.refresh();
+    }
+    
 
     /**
      * Operations to be completed when the create button is pressed
@@ -440,7 +627,7 @@ public class ViewDiscussionBoard {
     			//If the user has permission to edit the post
     			if(controller.canEdit(postToView, false, false)) 
     			{
-    				controller.editPost(postToView); //Edit post
+    				controller.edit(postToView); //Edit post
     				refresh(); //Refresh
     			}
     		}
@@ -459,7 +646,7 @@ public class ViewDiscussionBoard {
     			//If the user has permissions to delete
     			if(controller.canEdit(postToView, true, false)) 
     			{
-    				controller.deletePost(postToView); //Delete Post
+    				controller.delete(postToView); //Delete Post
     				refresh(); //Refresh
     			}
     		}
@@ -471,11 +658,12 @@ public class ViewDiscussionBoard {
     private void onSolve() 
     {
     	boolean status = activePost.getSolved(); //Get last status
-    	
+    	boolean toggled = false;
     	//If it was already marked as resolved
     	if (status) 
     	{
-    		controller.toggleResolved(activePost); //Toggle Status
+    		toggled = controller.toggleResolved(activePost); //Toggle Status
+    		if(!toggled) return; 
     		refresh(); //Refresh
     		viewStage.close(); //Close the Window
     		showPost(activePost); //Re-open the window so now you have full control
@@ -483,7 +671,8 @@ public class ViewDiscussionBoard {
     	//If it is being solved for the first time
     	} else 
     	{
-    		controller.toggleResolved(activePost); //Toggle Status
+    		toggled = controller.toggleResolved(activePost); //Toggle Status
+    		if(!toggled) return;
     		refresh(); //Refresh
     		viewStage.close(); //Close the view window
     	}
@@ -504,7 +693,7 @@ public class ViewDiscussionBoard {
     			//If user has permissions to edit
     			if(controller.canEdit(replyToEdit, false, false)) 
     			{
-    				controller.editReply(replyToEdit); //Edit Reply
+    				controller.edit(replyToEdit); //Edit Reply
     				refreshReplies(); //Refresh list
     			}
     		}
@@ -516,7 +705,7 @@ public class ViewDiscussionBoard {
     		if(controller.canEdit(activePost, false, false)) 
     		{
     			//If the user edits the post
-    			if(controller.editPost(activePost)) 
+    			if(controller.edit(activePost)) 
     			{
     				//Refresh the page
     				label_Header.setText(activePost.getHeader());
@@ -545,7 +734,7 @@ public class ViewDiscussionBoard {
     			if(controller.canEdit(replyToDelete, true, false)) 
     			{
     				//Delete Reply and Refresh
-    				controller.deleteReply(replyToDelete);
+    				controller.delete(replyToDelete);
     				refreshReplies();
     			}
     		}
@@ -557,7 +746,7 @@ public class ViewDiscussionBoard {
     		if(controller.canEdit(activePost, true, false)) 
     		{
     			//If post was deleted
-    			if(controller.deletePost(activePost)) 
+    			if(controller.delete(activePost)) 
     			{
     				//Close window and refresh
     				viewStage.close();
@@ -568,6 +757,61 @@ public class ViewDiscussionBoard {
     	}
     }
     
+    
+    /**
+     * Casts report content then completes delete operation
+     */
+    private void onDelete3() 
+    {
+    	boolean opComplete = false;
+    	if(activeReport.getObject() instanceof Post) 
+    	{
+    		opComplete = controller.delete((Post) activeReport.getObject());
+    	} else 
+    	{
+    		opComplete = controller.delete((Reply) activeReport.getObject());
+    	}
+    	
+    	if(opComplete) 
+    	{
+    		controller.delete(activeReport);
+    		viewStage.close();
+    		refreshReports();
+    	}
+    }
+    
+    /**
+     * Casts report content then completes edit operation
+     */
+    private void onEdit3() 
+    {
+    	boolean opComplete = false;
+    	if(activeReport.getObject() instanceof Post) 
+    	{
+    		opComplete = controller.edit((Post) activeReport.getObject());
+    	} else 
+    	{
+    		opComplete = controller.edit((Reply) activeReport.getObject());
+    	}
+    	
+    	if(opComplete) 
+    	{
+    		controller.delete(activeReport);
+    		viewStage.close();
+    		refreshReports();
+    	}
+    }
+    
+    /**
+     * Resolves the report without edits
+     */
+    private void resolveReport() 
+    {
+    	controller.delete(activeReport);
+    	viewStage.close();
+    	refreshReports();
+    }
+    
     /**
      * Operations to be completed when creating a reply from the post view
      */
@@ -575,6 +819,27 @@ public class ViewDiscussionBoard {
     {
     	controller.createReply(activePost.getID());
     	refreshReplies();
+    }
+    
+    /**
+     * Report the selected reply or post when viewing a post
+     */
+    private void report() 
+    {
+    	Reply selReply = selectedReply(); //Get the selected reply
+    	
+    	
+    	//If a reply is selected
+    	if(selReply != null) 
+    	{
+    		controller.createReport(selReply.getID());
+    	}
+    	
+    	//If no reply is selected attempt to report the post
+    	else 
+    	{
+    		controller.createReport(activePost.getID());
+    	}
     }
     
     

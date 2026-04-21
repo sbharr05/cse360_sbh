@@ -6,13 +6,13 @@ package guiDiscussionBoard;
  * </p>
  * 
  * <p>
- * Description: This class is unused. Womp Womp.
+ * Description: This class is unused.
  * </p>
  * 
  * 
- * @author Sutton Harr
+ * @author Sutton Harr 
  * 
- * @version 1.00
+ * @version 1.02
  * 
  */
 public class ModelDiscussionBoard {

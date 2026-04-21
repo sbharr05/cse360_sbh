@@ -12,9 +12,10 @@ package fieldCheckTools;
  * </p>
  * 
  * 
- * @author Lucas Conklin, Lynn Robert Carter
+ * @author Lynn Robert Carter, Sutton Harr 
  * 
- * @version 1.00 Function adapted from example given by Professor Carter to fit it's use case in the foundations code
+ * 
+ * @version 1.03 Function adapted from example given by Professor Carter to fit it's use case in the foundations code
  * 
  */
 

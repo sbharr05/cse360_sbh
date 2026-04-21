@@ -146,13 +146,26 @@ public class ControllerAdminHome {
 	/**********
 	 * <p> 
 	 * 
-	 * Title:  </p>
+	 * Title: showDiscusion  </p>
 	 * 
-	 * <p>  </p>
+	 * <p> This shows the discussion board</p>
 	 */
 	protected static void showDiscussion() {
 	    ViewDiscussionBoard.display(ViewAdminHome.theStage);
 	}
+	
+	/**********
+	 * <p> 
+	 * 
+	 * Title: showReports </p>
+	 * 
+	 * <p> This shows the discussion board reports</p>
+	 */
+	protected static void showReports() {
+	    ViewDiscussionBoard.displayReports(ViewAdminHome.theStage);
+	}
+	
+	
 
 	
 	/**********

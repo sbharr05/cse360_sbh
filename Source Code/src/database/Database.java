@@ -14,6 +14,8 @@ import entityClasses.CreateInfo;
 import entityClasses.Post;
 import entityClasses.Reply;
 import entityClasses.User;
+import entityClasses.ReportInfo;
+import entityClasses.DiscussionBoardContent;
 
 /*******
  * <p>
@@ -166,6 +168,13 @@ public class Database {
 			    ")";
 	
 		statement.execute(replyTable);
+		
+		String reportTable = "CREATE TABLE IF NOT EXISTS reports (" +
+			    "  id VARCHAR(36) UNIQUE," +
+			    "  number INT" +
+			    ")";
+		
+		statement.execute(reportTable);
 	}
 
 	/*******
@@ -273,6 +282,191 @@ public class Database {
 		}
 
 	}
+	
+	
+	
+	
+	/*******
+	 * <p>
+	 * Method: getContentById
+	 * </p>
+	 * 
+	 * <P>
+	 * Description: This is a multi-purpose class which will return a post saved post or reply class based on the relevant object stored in
+	 * either of the relevant sql tables. If none of the tables contain the unique id it will return null 
+	 * </p>
+	 * 
+	 * @param id the unique id of the content
+	 * 
+	 * @return DiscussionBoardContent the relevant object of the user content
+	 */
+	public DiscussionBoardContent getContentById(String id) {
+		
+		
+		//Attempt to find a related post
+	    String postSql = "SELECT id, userName, header, body, createdAt, edited, editedAt, solved " +
+	                     "FROM posts " +
+	                     "WHERE id = ?";
+
+	    //Search posts table for ID
+	    try (PreparedStatement ps = connection.prepareStatement(postSql)) {
+	        ps.setString(1, id);
+
+	        try (ResultSet rs = ps.executeQuery()) {
+	        	
+	        	//If Present Construct the post object
+	            if (rs.next()) {
+	                CreateInfo info = new CreateInfo(
+	                        rs.getString("userName"),
+	                        rs.getString("createdAt"),
+	                        rs.getBoolean("edited"),
+	                        rs.getString("editedAt"),
+	                        rs.getString("id")
+	                );
+
+	                Post post = new Post(
+	                        info,
+	                        rs.getString("header"),
+	                        rs.getString("body"),
+	                        rs.getBoolean("solved")
+	                );
+
+	                return post; //Post Found Return a Post Object
+	            }
+	        }
+	    } catch (SQLException e) {
+	        e.printStackTrace();
+	    }
+
+	    //If there is not post found, look for a reply with a matching Id
+	    String replySql = "SELECT id, postId, userName, body, createdAt, edited, editedAt " +
+	                      "FROM replies " +
+	                      "WHERE id = ?";
+
+	    //Search replies table for matching id
+	    try (PreparedStatement ps = connection.prepareStatement(replySql)) {
+	        ps.setString(1, id);
+
+	        try (ResultSet rs = ps.executeQuery()) {
+	        	
+	        	//If Reply is found construct a reply object
+	            if (rs.next()) {
+	                String parentId = rs.getString("postId");
+
+	                CreateInfo info = new CreateInfo(
+	                        rs.getString("userName"),
+	                        rs.getString("createdAt"),
+	                        rs.getBoolean("edited"),
+	                        rs.getString("editedAt"),
+	                        rs.getString("id")
+	                );
+
+	                Reply reply = new Reply(
+	                        info,
+	                        rs.getString("body"),
+	                        parentId
+	                );
+
+	                return reply;  //Reply was found return reply object
+	            }
+	        }
+	    } catch (SQLException e) {
+	        e.printStackTrace();
+	    }
+
+	    //Nothing was found return null
+	    return null;
+	}
+	
+	/*******
+	 * <p>
+	 * Method: mergeReport
+	 * </p>
+	 * 
+	 * <P>
+	 * This function either creates a new saved value of report content in the reports table, or will
+	 * update existing report values based on the unique id of the content
+	 * </p>
+	 * 
+	 * @param report the report object to merge into the database
+	 */
+	public void mergeReport(ReportInfo report) {
+		
+		//Merge operation to either save new column or update old ones
+	    String sql = "MERGE INTO reports (id, number) " +
+	                 "KEY(id) " +
+	                 "VALUES (?, ?)";
+
+	    try (PreparedStatement ps = connection.prepareStatement(sql)) {
+	        ps.setString(1, report.getID());
+	        ps.setInt(2, report.getNumber());
+	        ps.executeUpdate();
+	    } catch (SQLException e) {
+	        e.printStackTrace();  //Print Stack
+	    }
+	}
+	
+	
+	/*******
+	 * <p>
+	 * Method: getAllReports
+	 * </p>
+	 * 
+	 * <P>
+	 * This function obtains a list of all the report info objects saved into the SQL table.
+	 * </p>
+	 * 
+	 * @return ArrayList<ReportInfo> a list of all saved report info objects
+	 */
+	public ArrayList<ReportInfo> getAllReports() {
+	    ArrayList<ReportInfo> reports = new ArrayList<>(); //Create new array list
+
+	    String sql = "SELECT id, number FROM reports"; //Select all report ids and numbers from the reports table
+
+	    try (PreparedStatement ps = connection.prepareStatement(sql);
+	         ResultSet rs = ps.executeQuery()) {
+
+	    	//While there are rows to save
+	        while (rs.next()) {
+	        	
+	        	//Construct report info object and add to array list
+	            String id = rs.getString("id");
+	            int number = rs.getInt("number");
+	            DiscussionBoardContent content = getContentById(id);
+	            ReportInfo report = new ReportInfo(content, number, id);
+	            reports.add(report);
+	        }
+
+	    } catch (SQLException e) {
+	        e.printStackTrace(); // or your logging mechanism
+	    }
+
+	    return reports; //Return the list
+	}
+	
+	
+	/*******
+	 * <p>
+	 * Method: deleteReport
+	 * </p>
+	 * 
+	 * <P>
+	 * This function removes a report from the database when given the id
+	 * </p>
+	 * 
+	 * @param id the unique id of the user content
+	 */
+	public void deleteReport(String id) {
+	    String sql = "DELETE FROM reports WHERE id = ?"; //Deletion Statement
+
+	    try (PreparedStatement ps = connection.prepareStatement(sql)) {
+	        ps.setString(1, id);
+	        ps.executeUpdate(); //Remove from db
+	    } catch (SQLException e) {
+	        e.printStackTrace(); //Trace Stack on error
+	    }
+	}
+	
 	
 	/*******
 	 * <p>
@@ -1417,6 +1611,96 @@ public class Database {
 			e.printStackTrace();
 		}
 	}
+	/*Hw3....lines--------------------------------> */
+	public boolean updatePasswordAuthorized(String targetUsername, String actingUsername, String newPassword) {
+	    if (connection == null || targetUsername == null || actingUsername == null || newPassword == null) {
+	        return false;
+	    }
+
+	    try {
+	        if (!userExists(targetUsername)) {
+	            return false;
+	        }
+
+	        boolean actingOwnAccount = targetUsername.equals(actingUsername);
+	        if (!actingOwnAccount && !isAdminUser(actingUsername)) {
+	            return false;
+	        }
+
+	        String query = "UPDATE userDB SET password = ? WHERE username = ?";
+	        try (PreparedStatement pstmt = connection.prepareStatement(query)) {
+	            pstmt.setString(1, newPassword);
+	            pstmt.setString(2, targetUsername);
+	            int updated = pstmt.executeUpdate();
+	            if (updated > 0 && targetUsername.equals(currentUsername)) {
+	                currentPassword = newPassword;
+	            }
+	            return updated > 0;
+	        }
+	    } catch (SQLException e) {
+	        return false;
+	    }
+	}
+
+	public boolean updateUserRoleAuthorized(String targetUsername, String actingUsername, Role role, boolean newValue) {
+	    if (connection == null || targetUsername == null || actingUsername == null || role == null) {
+	        return false;
+	    }
+
+	    try {
+	        if (!userExists(targetUsername)) {
+	            return false;
+	        }
+
+	        if (!isAdminUser(actingUsername)) {
+	            return false;
+	        }
+
+	        return updateUserRole(targetUsername, role, Boolean.toString(newValue));
+	    } catch (SQLException e) {
+	        return false;
+	    }
+	}
+
+	public boolean isCurrentUserAdmin() {
+	    return currentAdminRole;
+	}
+	 public void deleteUserAccount(String username) {
+         if (connection == null || username == null) {
+                 return;
+         }
+
+         String query = "DELETE FROM userDB WHERE username = ?";
+         try (PreparedStatement pstmt = connection.prepareStatement(query)) {
+                 pstmt.setString(1, username);
+                 pstmt.executeUpdate();
+         } catch (SQLException e) {
+                 // Intended for test cleanup;
+         }
+ }
+	private boolean userExists(String username) throws SQLException {
+	    String query = "SELECT 1 FROM userDB WHERE username = ?";
+	    try (PreparedStatement pstmt = connection.prepareStatement(query)) {
+	        pstmt.setString(1, username);
+	        try (ResultSet rs = pstmt.executeQuery()) {
+	            return rs.next();
+	        }
+	    }
+	}
+
+	private boolean isAdminUser(String username) throws SQLException {
+	    String query = "SELECT adminRole FROM userDB WHERE username = ?";
+	    try (PreparedStatement pstmt = connection.prepareStatement(query)) {
+	        pstmt.setString(1, username);
+	        try (ResultSet rs = pstmt.executeQuery()) {
+	            return rs.next() && rs.getBoolean(1);
+	        }
+	    }
+	}
+	
+	/*-----------------h3lines*/
+	
+	
 	
 	/*******
 	 * <p>

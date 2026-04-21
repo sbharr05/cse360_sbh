@@ -12,10 +12,10 @@ package fieldCheckTools;
  * </p>
  * 
  * 
- * @author Lucas Conklin, Lynn Robert Carter
+ * @author Lynn Robert Carter, Sutton Harr 
  * 
  * 
- * @version 1.00 Function adapted from example given by Professor Carter to fit it's use case in the foundations code
+ * @version 1.03 Function adapted from example given by Professor Carter to  its use case in the foundations code
  * 
  */
 public class passChecker {
@@ -92,7 +92,7 @@ public class passChecker {
 			// Checks to see if the current char index goes over the maximum amount of
 			// password characters (new)
 			// Otherwise gives the standard length check to see if its at least 8 chars
-			if (currentCharNdx > 32) {
+			if (currentCharNdx >= 32) {
 				System.out.println("Password must be 32 characters or less");
 				foundLongEnough = false;
 			} else if (currentCharNdx >= 7) {

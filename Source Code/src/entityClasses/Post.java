@@ -12,13 +12,14 @@ package entityClasses;
  * </p>
  * 
  * 
- * @author Sutton Harr
- * @version 1.1
+ * @author Sutton Harr 
+ * 
+ * @version 1.03 
  * @see CreateInfo
  * 
  * 
  */
-public class Post {
+public class Post implements DiscussionBoardContent{
 	private CreateInfo postInfo; //Info class to store information about the post
 	private String header; //The header text of the post
 	private String body; //The body text of the post
@@ -169,5 +170,17 @@ public class Post {
 	{
 		if(postInfo.getEdited()) return getCreateDate() + " (Edited: " + postInfo.getLastEditDate() + ")";
 		else return getCreateDate();
+	}
+	
+	
+	/**
+	 * Returns the header in order to be displayed in short and implement the 
+	 * container interface
+	 * 
+	 * @return a String containing the header
+	 */
+	public String getSummary() 
+	{
+		return header;
 	}
 }

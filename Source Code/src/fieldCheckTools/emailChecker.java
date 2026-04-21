@@ -12,9 +12,9 @@ package fieldCheckTools;
  * </p>
  * 
  * 
- * @author Lucas Conklin, 
+ * @author Sutton Harr 
  * 
- * 
+ * @version 1.03 
  * 
  */
 public class emailChecker 

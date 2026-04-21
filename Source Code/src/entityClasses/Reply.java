@@ -1,6 +1,6 @@
 package entityClasses;
 
-public class Reply {
+public class Reply implements DiscussionBoardContent{
 	private CreateInfo replyInfo; //Info class to store information about the post
 	private String body; //The body text of the post
 	private String postID;
@@ -45,9 +45,17 @@ public class Reply {
 	public boolean getEditedBool() {return replyInfo.getEdited();}
 	
 	//If the post has been edited return a string displaying last edit date else return nothing
-		public String getCreateInfoFormatted() 
-		{
+	public String getCreateInfoFormatted() 
+	{
 			if(replyInfo.getEdited()) return getCreateDate() + " (Edited: " + replyInfo.getLastEditDate() + ")";
 			else return getCreateDate();
-		}
+	}
+	
+	//Summary of the reply to be displayed and implement the container interface
+	public String getSummary() 
+	{
+		String sub = body.substring(0, Math.min(body.length(), 30));
+		if(sub.length() != body.length()) sub += "...";
+		return sub;
+	}
 }

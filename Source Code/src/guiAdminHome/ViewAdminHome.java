@@ -104,6 +104,7 @@ public class ViewAdminHome {
 	protected static Button button_ListUsers = new Button("List All Users");
 	protected static Button button_AddRemoveRoles = new Button("Add/Remove Roles");
 	protected static Button button_ShowDiscussion = new Button("Discussion Board");
+	protected static Button button_ShowReports = new Button("Review Reports");
 	protected static Alert alertNotImplemented = new Alert(AlertType.INFORMATION);
 
 	// This is a separator and it is used to partition the GUI for various tasks
@@ -271,6 +272,9 @@ public class ViewAdminHome {
 		
 		setupButtonUI(button_ShowDiscussion, "Dialog", 40, 300, Pos.CENTER, 350, 350);
 		button_ShowDiscussion.setOnAction((event) -> {ControllerAdminHome.showDiscussion();});
+		
+		setupButtonUI(button_ShowReports, "Dialog", 30, 366, Pos.CENTER, 350, 425);
+		button_ShowReports.setOnAction((event) -> {ControllerAdminHome.showReports();});
 		// This is the end of the GUI initialization code
 		
 		// Place all of the widget items into the Root Pane's list of children
@@ -287,6 +291,7 @@ public class ViewAdminHome {
     		button_ListUsers,
     		button_AddRemoveRoles,
     		button_ShowDiscussion,
+    		button_ShowReports,
     		line_Separator4, 
     		button_Logout,
     		button_Quit

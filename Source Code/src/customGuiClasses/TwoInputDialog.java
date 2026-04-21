@@ -16,9 +16,9 @@ import javafx.scene.layout.VBox;
  * </p>
  * 
  * 
- * @author Sutton Harr
+ * @author Sutton Harr 
  * 
- * @version 1.1
+ * @version 1.03 
  * 
  */
 public class TwoInputDialog {
